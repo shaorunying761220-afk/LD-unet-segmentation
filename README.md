@@ -1,39 +1,55 @@
-# LD Segmentation Pipeline (ND2 -> Annotation -> U-Net -> Quantification)
+# LD Segmentation Pipeline (ND2 → Annotation → U-Net → Quantification)
 
-本仓库用于脂滴（LD）分割任务，支持从 Nikon ND2 原始数据出发，完成以下全流程：
+This repository provides a pipeline for **lipid droplet (LD) segmentation** starting from Nikon ND2 microscopy data.
 
-1. ND2 切 patch（16-bit，C0）
-2. Otsu 初始掩膜 + 人工校正
-3. 轻量 U-Net 训练（CPU）
-4. 原图全量推理（重叠+加权拼接，减少缝合伪影）
-5. 后处理（二次切分/异常剔除）与分组统计可视化
+The workflow supports a full end-to-end process including:
+
+1. Patch extraction from ND2 images (16-bit, channel C0)
+2. Initial mask generation using Otsu thresholding with optional manual correction
+3. Lightweight U-Net training (CPU compatible)
+4. Whole-image inference on original ND2 data (overlapping tiles with weighted stitching to reduce seam artifacts)
+5. Post-processing and quantitative analysis
 
 ---
 
-## 1. Repository Structure
+# Repository Structure
 
-```text
+```
 Unet/
 ├─ scripts/
-│  ├─ prepare_ld_annotation_patches.py   # Stage 0: ND2 -> patch
-│  ├─ otsu_then_train.py                  # Stage A/B: Otsu + train
-│  ├─ infer_unet_on_nd2.py                # Stage C: whole-image inference
-│  └─ postprocess_and_quantify_ld.py      # Stage D: postprocess + quantify
+│  ├─ prepare_ld_annotation_patches.py
+│  ├─ otsu_then_train.py
+│  ├─ infer_unet_on_nd2.py
+│  └─ postprocess_and_quantify_ld.py
+│
 ├─ docs/
-│  └─ PIPELINE_CN.md                      # 详细中文说明（推荐先读）
+│  └─ PIPELINE_CN.md
+│
 ├─ configs/
 ├─ requirements.txt
 ├─ .gitignore
 └─ README.md
 ```
 
-> 数据目录（`RAW_ND2_DIR/`, `OUTPUT_ROOT/`, `OUTPUT_ROOT_2/`）默认不纳入 Git 追踪。
+Script stages:
+
+| Script | Function |
+|------|------|
+| prepare_ld_annotation_patches.py | ND2 → patch extraction |
+| otsu_then_train.py | Otsu mask initialization + U-Net training |
+| infer_unet_on_nd2.py | Whole image inference |
+| postprocess_and_quantify_ld.py | Post-processing and quantitative analysis |
+
+Note:  
+Data directories such as `RAW_ND2_DIR`, `OUTPUT_ROOT`, and `OUTPUT_ROOT_2` are **excluded from Git tracking**.
 
 ---
 
-## 2. Environment
+# Environment
 
-建议 Python 3.10+。CPU 环境示例：
+Python **3.10+** recommended.
+
+Create environment:
 
 ```bash
 python -m venv .venv
@@ -41,7 +57,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-PyTorch CPU 也可单独安装：
+Install PyTorch CPU version:
 
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
@@ -49,22 +65,25 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ---
 
-## 3. Quick Start
+# Quick Start
 
-### 3.1 ND2 切 patch（16-bit）
+## 1 Extract patches from ND2
 
 ```bash
 python scripts/prepare_ld_annotation_patches.py
 ```
 
-在脚本 `CONFIG` 区修改：
+Modify the `CONFIG` section inside the script:
+
 - `RAW_ND2_DIR`
 - `OUTPUT_ROOT`
-- `projection_mode`, `patch_size`, `stride` 等
+- `projection_mode`
+- `patch_size`
+- `stride`
 
 ---
 
-### 3.2 Otsu 自动初标 + 人工检查
+## 2 Generate initial masks using Otsu thresholding
 
 ```bash
 python scripts/otsu_then_train.py \
@@ -74,14 +93,19 @@ python scripts/otsu_then_train.py \
   --max_otsu_patches 120
 ```
 
-输出：
-- `ANNOTATION_DIR/masks/*.tif`（0/1）
-- `ANNOTATION_DIR/preview/*.png`
-- `PATCHES_META_DIR/otsu_manifest.csv`
+Outputs
+
+```
+ANNOTATION_DIR/masks/*.tif
+ANNOTATION_DIR/preview/*.png
+PATCHES_META_DIR/otsu_manifest.csv
+```
+
+Manual correction of masks is recommended before training.
 
 ---
 
-### 3.3 训练 U-Net（CPU）
+## 3 Train U-Net
 
 ```bash
 python -u scripts/otsu_then_train.py \
@@ -94,20 +118,24 @@ python -u scripts/otsu_then_train.py \
   --skip_pred_preview
 ```
 
-训练日志实时打印每个 epoch 的：
-- train loss
-- val loss
-- val Dice
-- val IoU
+Training metrics printed per epoch:
 
-模型输出：
-- `PATCHES_META_DIR/train_artifacts/best_unet.pt`
-- `PATCHES_META_DIR/train_artifacts/train_log.csv`
-- `PATCHES_META_DIR/train_artifacts/split.csv`
+- train loss
+- validation loss
+- validation Dice
+- validation IoU
+
+Model outputs
+
+```
+PATCHES_META_DIR/train_artifacts/best_unet.pt
+PATCHES_META_DIR/train_artifacts/train_log.csv
+PATCHES_META_DIR/train_artifacts/split.csv
+```
 
 ---
 
-### 3.4 原始 ND2 全量推理
+## 4 Whole-image inference
 
 ```bash
 python scripts/infer_unet_on_nd2.py \
@@ -121,17 +149,20 @@ python scripts/infer_unet_on_nd2.py \
   --prob_threshold 0.5
 ```
 
-输出：
-- `INFERENCE_UNET/masks/*.tif`
-- `INFERENCE_UNET/prob/*.tif`
-- `INFERENCE_UNET/preview/*.png`
-- `INFERENCE_UNET/inference_manifest.csv`
+Outputs
 
-> 采用重叠 tile + Hann 加权融合，减少拼接十字缝伪影。
+```
+INFERENCE_UNET/masks/*.tif
+INFERENCE_UNET/prob/*.tif
+INFERENCE_UNET/preview/*.png
+INFERENCE_UNET/inference_manifest.csv
+```
+
+The pipeline uses **overlapping tiles with Hann weighted blending** to reduce stitching artifacts.
 
 ---
 
-### 3.5 后处理 + 生物统计
+## 5 Post-processing and quantification
 
 ```bash
 python scripts/postprocess_and_quantify_ld.py \
@@ -144,36 +175,13 @@ python scripts/postprocess_and_quantify_ld.py \
   --min_peak_distance 7
 ```
 
-输出：
-- `POSTPROCESS_STATS/per_image_stats.csv`
-- `POSTPROCESS_STATS/per_droplet_stats.csv`
-- `POSTPROCESS_STATS/dropped_images.csv`
-- `POSTPROCESS_STATS/group_summary.csv`
-- `POSTPROCESS_STATS/plots/*.png`
+Outputs
 
----
-
-## 4. Data Policy for GitHub
-
-建议不要上传：
-- 原始 ND2
-- 全量 patch
-- 全量 mask/preview
-- 模型大文件（可用 release 或网盘）
-
-建议上传：
-- `scripts/`
-- `docs/`
-- `requirements.txt`
-- 少量匿名示例图（可选）
-- 统计结果示例 CSV（可选，注意隐私）
-
----
-
-## 5. Citation / Internal Notes
-
-如果仓库用于组内共享，建议在 `docs/PIPELINE_CN.md` 追加：
-- 样本来源和批次说明
-- 显微参数（曝光、放大倍数）
-- 统计检验方法（如后续用 R/GraphPad）
+```
+POSTPROCESS_STATS/per_image_stats.csv
+POSTPROCESS_STATS/per_droplet_stats.csv
+POSTPROCESS_STATS/dropped_images.csv
+POSTPROCESS_STATS/group_summary.csv
+POSTPROCESS_STATS/plots/*.png
+```
 
