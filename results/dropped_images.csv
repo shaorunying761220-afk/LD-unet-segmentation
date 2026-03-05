@@ -1,0 +1,5 @@
+source_nd2,treatment,fg_ratio,reason
+72-KLH45_bodipyLD_1071.nd2,72-KLH45,0.009449005126953125,max_object_area>3000
+WT-KLH45_bodipyLD_1034.nd2,WT-KLH45,0.07413291931152344,fg_ratio>0.05
+WT-KLH45_bodipyLD_1035.nd2,WT-KLH45,0.06251907348632812,fg_ratio>0.05
+WT-noKLH45_bodipyLD_1026.nd2,WT-noKLH45,0.0066776275634765625,max_object_area>3000
