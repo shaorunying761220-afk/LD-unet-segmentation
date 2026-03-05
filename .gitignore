@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.venv/
+.venv-hb/
+
+# Data (large, private)
+RAW_ND2_DIR/
+OUTPUT_ROOT/
+OUTPUT_ROOT_2/
+
+# Optional local outputs
+POSTPROCESS_STATS/
+INFERENCE_UNET/
+
+# IDE
+.vscode/
+.idea/

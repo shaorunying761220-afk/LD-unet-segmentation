@@ -1,0 +1,19 @@
+# Core IO & numerics
+numpy
+pandas
+tifffile
+pillow
+matplotlib
+tqdm
+
+# ND2 reading
+nd2
+
+# image processing
+scikit-image
+scipy
+
+# deep learning (CPU)
+torch
+torchvision
+torchaudio
